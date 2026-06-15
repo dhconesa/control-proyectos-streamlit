@@ -174,7 +174,6 @@ else:
     df_proyectos, ws_proyectos = get_dataframe("proyectos")
     df_tareas, ws_tareas = get_dataframe("tareas")
     
-    # 📌 MEJORA CRUCIAL: Fijamos el índice físico para evitar errores de duplicados de ID
     if not df_tareas.empty:
         df_tareas['row_index'] = df_tareas.index
 
@@ -312,7 +311,6 @@ else:
                     
                     sel_tarea_edit = st.selectbox("Selecciona la Tarea a gestionar", df_merge_t['descriptivo'].values)
                     idx_m = df_merge_t[df_merge_t['descriptivo'] == sel_tarea_edit].index[0]
-                    # Búsqueda infalible por índice físico de la fila
                     idx_t_real = int(df_merge_t.iloc[idx_m]['row_index'])
                     datos_t = df_tareas.loc[idx_t_real]
                     
@@ -322,6 +320,17 @@ else:
                             ed_t_estado = st.selectbox("Estado", ["No iniciado", "Bloqueado", "En curso", "Completado"], index=["No iniciado", "Bloqueado", "En curso", "Completado"].index(datos_t.get('estado', 'No iniciado')))
                             ed_t_prio = st.selectbox("Prioridad", ["Baja", "Media", "Alta"], index=["Baja", "Media", "Alta"].index(datos_t.get('prioridad', 'Baja')))
                             ed_t_resp = st.text_input("Responsable", value=datos_t.get('responsable', ''))
+                            
+                            try: f_ini_val = pd.to_datetime(datos_t.get('fecha_inicio', ''), format='%d/%m/%Y').date()
+                            except: f_ini_val = datetime.today().date()
+                            
+                            try: f_fin_val = pd.to_datetime(datos_t.get('fecha_entrega', ''), format='%d/%m/%Y').date()
+                            except: f_fin_val = datetime.today().date()
+                            
+                            c_d1, c_d2 = st.columns(2)
+                            with c_d1: ed_t_inicio = st.date_input("Fecha Inicio", value=f_ini_val)
+                            with c_d2: ed_t_entrega = st.date_input("Fecha Entrega", value=f_fin_val)
+                            
                             ed_t_obs = st.text_area("Observaciones", value=datos_t.get('observaciones', ''))
                             
                             if st.form_submit_button("Guardar Cambios"):
@@ -329,6 +338,8 @@ else:
                                 ws_tareas.update_cell(fila_t, 4, ed_t_prio)
                                 ws_tareas.update_cell(fila_t, 5, ed_t_estado)
                                 ws_tareas.update_cell(fila_t, 6, ed_t_resp)
+                                ws_tareas.update_cell(fila_t, 7, ed_t_inicio.strftime('%d/%m/%Y'))
+                                ws_tareas.update_cell(fila_t, 8, ed_t_entrega.strftime('%d/%m/%Y'))
                                 ws_tareas.update_cell(fila_t, 9, ed_t_obs)
                                 st.success("Tarea modificada.")
                                 st.rerun()
@@ -407,13 +418,12 @@ else:
                             hide_index=True,
                             on_select="rerun",
                             selection_mode="single-row",
-                            key="tabla_interactiva_tareas_v2"
+                            key="tabla_interactiva_tareas_v3"
                         )
                         
-                        # --- DESPLIEGUE DEL FORMULARIO DE EDICIÓN RÁPIDA (BULLETPROOF) ---
+                        # --- DESPLIEGUE DEL FORMULARIO DE EDICIÓN RÁPIDA ---
                         if hasattr(evento_seleccion, "selection") and len(evento_seleccion.selection.rows) > 0:
                             indice_seleccionado = evento_seleccion.selection.rows[0]
-                            # Búsqueda por el índice de la fila real del Sheet, no por el ID de tarea
                             idx_t_real = int(df_ver.iloc[indice_seleccionado]['row_index'])
                             datos_tarea_real = df_tareas.loc[idx_t_real]
                             
@@ -422,20 +432,30 @@ else:
                             
                             col_ed1, col_ed2 = st.columns(2)
                             with col_ed1:
-                                # Clave de formulario dinámica
                                 with st.form(f"form_ed_tar_rapida_{idx_t_real}"):
                                     
-                                    # Prevención de errores de tipeo en base de datos manual
                                     est_actual = datos_tarea_real.get('estado', 'No iniciado')
                                     if est_actual not in ["No iniciado", "Bloqueado", "En curso", "Completado"]: est_actual = "No iniciado"
                                     
                                     pri_actual = datos_tarea_real.get('prioridad', 'Baja')
                                     if pri_actual not in ["Baja", "Media", "Alta"]: pri_actual = "Baja"
                                     
-                                    # Claves (keys) dinámicas para cada caja de texto individual
                                     ed_t_estado = st.selectbox("Estado", ["No iniciado", "Bloqueado", "En curso", "Completado"], index=["No iniciado", "Bloqueado", "En curso", "Completado"].index(est_actual), key=f"est_{idx_t_real}")
                                     ed_t_prio = st.selectbox("Prioridad", ["Baja", "Media", "Alta"], index=["Baja", "Media", "Alta"].index(pri_actual), key=f"pri_{idx_t_real}")
                                     ed_t_resp = st.text_input("Responsable", value=datos_tarea_real.get('responsable', ''), key=f"res_{idx_t_real}")
+                                    
+                                    # Conversión segura de las fechas existentes a objetos datetime
+                                    try: f_ini_actual = pd.to_datetime(datos_tarea_real.get('fecha_inicio', ''), format='%d/%m/%Y').date()
+                                    except: f_ini_actual = datetime.today().date()
+                                    
+                                    try: f_fin_actual = pd.to_datetime(datos_tarea_real.get('fecha_entrega', ''), format='%d/%m/%Y').date()
+                                    except: f_fin_actual = datetime.today().date()
+                                    
+                                    # Diseño en dos columnas para las fechas
+                                    c_f1, c_f2 = st.columns(2)
+                                    with c_f1: ed_t_inicio = st.date_input("Fecha de Inicio", value=f_ini_actual, key=f"ini_{idx_t_real}")
+                                    with c_f2: ed_t_entrega = st.date_input("Fecha de Entrega", value=f_fin_actual, key=f"fin_{idx_t_real}")
+                                    
                                     ed_t_obs = st.text_area("Observaciones", value=datos_tarea_real.get('observaciones', ''), key=f"obs_{idx_t_real}")
                                     
                                     if st.form_submit_button("Guardar Cambios Rápidos"):
@@ -443,6 +463,8 @@ else:
                                         ws_tareas.update_cell(fila_t, 4, ed_t_prio)
                                         ws_tareas.update_cell(fila_t, 5, ed_t_estado)
                                         ws_tareas.update_cell(fila_t, 6, ed_t_resp)
+                                        ws_tareas.update_cell(fila_t, 7, ed_t_inicio.strftime('%d/%m/%Y'))
+                                        ws_tareas.update_cell(fila_t, 8, ed_t_entrega.strftime('%d/%m/%Y'))
                                         ws_tareas.update_cell(fila_t, 9, ed_t_obs)
                                         st.success("¡Tarea actualizada correctamente!")
                                         st.rerun()
