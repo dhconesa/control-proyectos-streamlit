@@ -41,13 +41,23 @@ def get_dataframe(sheet_name):
     return pd.DataFrame(), None
 
 # --- LÓGICA DE CÁLCULO DE ESTADO ---
+# --- LÓGICA DE CÁLCULO DE ESTADO ---
 def calcular_estado_proyecto(id_proy, df_t):
+    # 1. Validación de seguridad: Si la tabla de tareas está vacía o no tiene la columna, no calculamos nada.
+    if df_t.empty or 'id_proyecto' not in df_t.columns:
+        return "⏳ En proceso (Sin tareas)"
+    
+    # 2. Filtrar las tareas correspondientes a este proyecto específico
     tareas_p = df_t[df_t['id_proyecto'] == id_proy]
+    
+    # 3. Si el proyecto existe pero aún no se le han asignado tareas
     if tareas_p.empty:
         return "⏳ En proceso (Sin tareas)"
-    # Si todas las tareas están en estado 'Completado'
+        
+    # 4. Si TODAS las tareas asociadas tienen el estado 'Completado'
     if all(tareas_p['estado'] == 'Completado'):
         return "✅ Completado"
+        
     return "⏳ En proceso"
 
 # --- LOGIN (Simplificado para el ejemplo, mantener el anterior en producción) ---
