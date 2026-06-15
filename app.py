@@ -3,7 +3,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, json
+from datetime import datetime
+import json
 
 # 1. Configuración de la página
 st.set_page_config(page_title="Gestión de Proyectos Pro", layout="wide", page_icon="📊")
