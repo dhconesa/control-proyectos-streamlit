@@ -215,7 +215,7 @@ else:
                 
                 if st.form_submit_button("Guardar Proyecto") and n_proy:
                     nuevo_id = int(df_proyectos['id_proyecto'].max()) + 1 if not df_proyectos.empty and pd.notna(df_proyectos['id_proyecto'].max()) else 1
-                    fecha_hoy = datetime.today().strftime('%d/%m/%Y')  # Formato corregido a DD/MM/AAAA
+                    fecha_hoy = datetime.today().strftime('%d/%m/%Y')
                     ws_proyectos.append_row([nuevo_id, n_proy, d_proy, depto, fecha_hoy])
                     st.success(f"Proyecto '{n_proy}' creado.")
                     st.rerun()
@@ -285,7 +285,6 @@ else:
                     t_obs = st.text_area("Observaciones")
                     
                     if st.form_submit_button("Crear Tarea") and t_nombre:
-                        # CORRECCIÓN DE FORMATO: Forzar el guardado como DD/MM/AAAA hacia el Sheet
                         f_inicio_fmt = t_inicio.strftime('%d/%m/%Y')
                         f_entrega_fmt = t_entrega.strftime('%d/%m/%Y')
                         
@@ -326,7 +325,7 @@ else:
                     with col_ed2:
                         if st.button("🗑️ Eliminar esta Tarea", use_container_width=True):
                             ws_tareas.delete_rows(int(idx_t) + 2)
-                            st.success("Tarea eliminada.")
+                            st.success("Tarea eliminated.")
                             st.rerun()
                 else:
                     st.write("No hay tareas registradas.")
@@ -344,15 +343,14 @@ else:
                 df_gantt = df_tareas.copy()
                 df_gantt = pd.merge(df_gantt, df_proyectos, on='id_proyecto', how='left')
                 
-                # CORRECCIÓN DE INTERPRETACIÓN: Decirle a pandas que lea las fechas bajo el formato DD/MM/AAAA
                 df_gantt['fecha_inicio'] = pd.to_datetime(df_gantt['fecha_inicio'], format='%d/%m/%Y', errors='coerce')
                 df_gantt['fecha_entrega'] = pd.to_datetime(df_gantt['fecha_entrega'], format='%d/%m/%Y', errors='coerce')
                 
-                # Eliminar filas donde las fechas no se hayan podido transformar correctamente por seguridad
                 df_gantt = df_gantt.dropna(subset=['fecha_inicio', 'fecha_entrega'])
                 
-               fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
-                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
+                # PARÁMETROS CORREGIDOS DE PLOTLY TIMELINE (x_start y x_end)
+                fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
+                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
                 fig.update_yaxis(autorange="reversed")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
