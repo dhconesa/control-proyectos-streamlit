@@ -190,7 +190,7 @@ else:
                 if not df_tareas.empty and 'departamento' in df_proyectos.columns:
                     df_m = pd.merge(df_tareas, df_proyectos, on='id_proyecto', how='left')
                     fig2 = px.bar(df_m, x='departamento', color='estado', title="Estado de Tareas por Departamento",
-                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#f0ad4e", "Bloqueado": "#d9534f", "No iniciado": "#e2e3e5"})
+                                  color_discrete_map={"Completado": "#00c875", "En curso": "#fdab3d", "Bloqueado": "#e2445c", "No iniciado": "#c4c4c4"})
                     st.plotly_chart(fig2, use_container_width=True)
 
     # ------------------ MENU: CRUD PROYECTOS ------------------
@@ -215,7 +215,6 @@ else:
             if not df_proyectos.empty:
                 df_proyectos['Estado Proyecto'] = df_proyectos['id_proyecto'].apply(lambda x: calcular_estado_proyecto(x, df_tareas))
                 
-                # --- NUEVO FILTRO DE DEPARTAMENTO ---
                 st.markdown("### 🔍 Filtro de Visualización")
                 lista_deptos_p = ["Todos"] + sorted(df_proyectos['departamento'].dropna().unique().tolist())
                 filtro_depto_p = st.selectbox("🏢 Filtrar por Departamento", lista_deptos_p, key="filtro_proyectos_depto")
@@ -224,7 +223,7 @@ else:
                 if filtro_depto_p != "Todos":
                     df_proyectos_view = df_proyectos_view[df_proyectos_view['departamento'] == filtro_depto_p]
                 
-                st.dataframe(df_proyectos_view, use_container_width=True)
+                st.dataframe(df_proyectos_view, use_container_width=True, hide_index=True)
                 
                 st.markdown("---")
                 st.markdown("### ✏️ Editar Proyecto")
@@ -362,22 +361,41 @@ else:
                     if df_ver.empty:
                         st.info("No se encontraron tareas con los filtros seleccionados.")
                     else:
+                        # --- NUEVOS ESTILOS TIPO MONDAY.COM ---
                         def color_estado(val):
-                            if val == 'Completado':
-                                return 'background-color: #d4edda; color: #155724; font-weight: bold;'
-                            elif val == 'En curso':
-                                return 'background-color: #fff3cd; color: #856404; font-weight: bold;'
-                            elif val == 'Bloqueado':
-                                return 'background-color: #f8d7da; color: #721c24; font-weight: bold;'
-                            elif val == 'No iniciado':
-                                return 'background-color: #e2e3e5; color: #383d41; font-weight: bold;'
+                            if val == 'Completado': return 'background-color: #00c875; color: white; font-weight: bold; text-align: center;'
+                            elif val == 'En curso': return 'background-color: #fdab3d; color: white; font-weight: bold; text-align: center;'
+                            elif val == 'Bloqueado': return 'background-color: #e2445c; color: white; font-weight: bold; text-align: center;'
+                            elif val == 'No iniciado': return 'background-color: #c4c4c4; color: white; font-weight: bold; text-align: center;'
                             return ''
 
-                        cols_mostrar = ['departamento', 'nombre_proyecto', 'tarea', 'prioridad', 'estado', 'responsable', 'fecha_inicio', 'fecha_entrega', 'observaciones']
+                        def color_prioridad(val):
+                            if val == 'Alta': return 'background-color: #e2445c; color: white; font-weight: bold; text-align: center;'
+                            elif val == 'Media': return 'background-color: #fdab3d; color: white; font-weight: bold; text-align: center;'
+                            elif val == 'Baja': return 'background-color: #00c875; color: white; font-weight: bold; text-align: center;'
+                            return ''
+
+                        cols_mostrar = ['departamento', 'nombre_proyecto', 'tarea', 'responsable', 'prioridad', 'estado', 'fecha_inicio', 'fecha_entrega', 'observaciones']
                         cols_existentes = [c for c in cols_mostrar if c in df_ver.columns]
                         
-                        df_final = df_ver[cols_existentes]
-                        st.dataframe(df_final.style.map(color_estado, subset=['estado']), use_container_width=True)
+                        df_final = df_ver[cols_existentes].copy()
+                        
+                        # Limpieza de nombres de cabecera para que sea más profesional
+                        df_final.rename(columns={
+                            'departamento': 'Departamento',
+                            'nombre_proyecto': 'Proyecto',
+                            'tarea': 'Elemento / Tarea',
+                            'responsable': 'Responsable',
+                            'prioridad': 'Prioridad',
+                            'estado': 'Estado',
+                            'fecha_inicio': 'F. Inicio',
+                            'fecha_entrega': 'F. Entrega',
+                            'observaciones': 'Observaciones'
+                        }, inplace=True)
+                        
+                        # Aplicar múltiples estilos y ocultar el índice
+                        styler = df_final.style.map(color_estado, subset=['Estado']).map(color_prioridad, subset=['Prioridad'])
+                        st.dataframe(styler, use_container_width=True, hide_index=True)
                 else:
                     st.info("No hay tareas registradas en la base de datos.")
 
@@ -417,7 +435,7 @@ else:
                     st.info("No se encontraron tareas con los filtros seleccionados.")
                 else:
                     fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
-                                      color_discrete_map={"Completado": "#6eb43f", "En curso": "#f0ad4e", "Bloqueado": "#d9534f", "No iniciado": "#e2e3e5"})
+                                      color_discrete_map={"Completado": "#00c875", "En curso": "#fdab3d", "Bloqueado": "#e2445c", "No iniciado": "#c4c4c4"})
                     fig.update_yaxes(autorange="reversed")
                     st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
@@ -430,7 +448,7 @@ else:
         st.title("⚙️ Gestión de Usuarios")
         df_users, ws_users = get_dataframe("usuarios")
         if not df_users.empty:
-            st.dataframe(df_users[['id', 'nombre', 'usuario', 'rol', 'activo']], use_container_width=True)
+            st.dataframe(df_users[['id', 'nombre', 'usuario', 'rol', 'activo']], use_container_width=True, hide_index=True)
             usuario_sel = st.selectbox("Selecciona usuario a modificar", df_users['usuario'].values)
             idx_u = df_users[df_users['usuario'] == usuario_sel].index[0]
             datos_u = df_users.iloc[idx_u]
