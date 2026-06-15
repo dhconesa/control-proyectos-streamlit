@@ -5,10 +5,9 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import json
-import os
 
 # 1. Configuración de la página
-st.set_page_config(page_title="JotaJota - Proyectos", layout="wide", page_icon="🌍")
+st.set_page_config(page_title="Jota Jota Foods - Proyectos", layout="wide", page_icon="🌍")
 
 # --- TEMA CORPORATIVO JOTAJOTA ---
 def aplicar_tema_corporativo():
@@ -105,10 +104,8 @@ if "user_role" not in st.session_state: st.session_state.user_role = ""
 
 # --- PANTALLA DE LOGIN Y REGISTRO ---
 if not st.session_state.logged_in:
-    if os.path.exists("logo.png"): st.image("logo.png", width=300)
-    elif os.path.exists("logo.jpg"): st.image("logo.jpg", width=300)
-    
-    st.title("🌍 Portal de Proyectos JotaJota")
+    # Sustituido el logo por el texto Jota Jota Foods
+    st.title("🌍 Jota Jota Foods - Portal de Proyectos")
     tab_login, tab_reg = st.tabs(["🔑 Iniciar Sesión", "📝 Registrarse"])
     
     df_users, ws_users = get_dataframe("usuarios")
@@ -153,12 +150,8 @@ if not st.session_state.logged_in:
 # --- APLICACIÓN PRINCIPAL (LOGUEADO) ---
 else:
     with st.sidebar:
-        if os.path.exists("logo.png"):
-            st.image("logo.png", use_container_width=True)
-        elif os.path.exists("logo.jpg"):
-            st.image("logo.jpg", use_container_width=True)
-        else:
-            st.markdown("## JotaJota")
+        # Sustituido el logo por texto en la barra lateral
+        st.markdown("## Jota Jota Foods")
             
         st.markdown("---")
         st.write(f"👤 **Usuario:** {st.session_state.nombre_completo}")
@@ -338,20 +331,16 @@ else:
                     col_f1, col_f2 = st.columns(2)
                     
                     with col_f1:
-                        # Extraer departamentos únicos
                         lista_deptos = ["Todos"] + sorted(df_ver['departamento'].dropna().unique().tolist())
                         filtro_depto = st.selectbox("🏢 Filtrar por Departamento", lista_deptos)
                         
-                    # Aplicar filtro de departamento primero
                     if filtro_depto != "Todos":
                         df_ver = df_ver[df_ver['departamento'] == filtro_depto]
                         
                     with col_f2:
-                        # La lista de proyectos se actualiza según el departamento seleccionado
                         lista_proys = ["Todos"] + sorted(df_ver['nombre_proyecto'].dropna().unique().tolist())
                         filtro_proy = st.selectbox("📁 Filtrar por Proyecto", lista_proys)
                         
-                    # Aplicar filtro de proyecto
                     if filtro_proy != "Todos":
                         df_ver = df_ver[df_ver['nombre_proyecto'] == filtro_proy]
                         
@@ -360,25 +349,21 @@ else:
                     if df_ver.empty:
                         st.info("No se encontraron tareas con los filtros seleccionados.")
                     else:
-                        # FUNCIÓN PARA DAR COLOR A LA COLUMNA "ESTADO"
                         def color_estado(val):
                             if val == 'Completado':
-                                return 'background-color: #d4edda; color: #155724; font-weight: bold;' # Verde
+                                return 'background-color: #d4edda; color: #155724; font-weight: bold;'
                             elif val == 'En curso':
-                                return 'background-color: #fff3cd; color: #856404; font-weight: bold;' # Naranja/Amarillo
+                                return 'background-color: #fff3cd; color: #856404; font-weight: bold;'
                             elif val == 'Bloqueado':
-                                return 'background-color: #f8d7da; color: #721c24; font-weight: bold;' # Rojo
+                                return 'background-color: #f8d7da; color: #721c24; font-weight: bold;'
                             elif val == 'No iniciado':
-                                return 'background-color: #e2e3e5; color: #383d41; font-weight: bold;' # Gris
+                                return 'background-color: #e2e3e5; color: #383d41; font-weight: bold;'
                             return ''
 
-                        # Seleccionar y ordenar las columnas que queremos ver
                         cols_mostrar = ['departamento', 'nombre_proyecto', 'tarea', 'prioridad', 'estado', 'responsable', 'fecha_inicio', 'fecha_entrega', 'observaciones']
                         cols_existentes = [c for c in cols_mostrar if c in df_ver.columns]
                         
                         df_final = df_ver[cols_existentes]
-                        
-                        # Aplicar los estilos condicionales y mostrar la tabla
                         st.dataframe(df_final.style.map(color_estado, subset=['estado']), use_container_width=True)
                 else:
                     st.info("No hay tareas registradas en la base de datos.")
