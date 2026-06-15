@@ -199,7 +199,7 @@ else:
                 if not df_tareas.empty and 'departamento' in df_proyectos.columns:
                     df_m = pd.merge(df_tareas, df_proyectos, on='id_proyecto', how='left')
                     fig2 = px.bar(df_m, x='departamento', color='estado', title="Estado de Tareas por Departamento",
-                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
+                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#f0ad4e", "Bloqueado": "#d9534f", "No iniciado": "#e2e3e5"})
                     st.plotly_chart(fig2, use_container_width=True)
 
     # ------------------ MENU: CRUD PROYECTOS ------------------
@@ -325,7 +325,7 @@ else:
                     with col_ed2:
                         if st.button("🗑️ Eliminar esta Tarea", use_container_width=True):
                             ws_tareas.delete_rows(int(idx_t) + 2)
-                            st.success("Tarea eliminated.")
+                            st.success("Tarea eliminada.")
                             st.rerun()
                 else:
                     st.write("No hay tareas registradas.")
@@ -333,7 +333,55 @@ else:
             with tab_t3:
                 if not df_tareas.empty and 'tarea' in df_tareas.columns:
                     df_ver = pd.merge(df_tareas, df_proyectos, on='id_proyecto', how='left')
-                    st.dataframe(df_ver[['nombre_proyecto', 'tarea', 'prioridad', 'estado', 'responsable', 'fecha_inicio', 'fecha_entrega', 'observaciones']], use_container_width=True)
+                    
+                    st.markdown("### 🔍 Filtros")
+                    col_f1, col_f2 = st.columns(2)
+                    
+                    with col_f1:
+                        # Extraer departamentos únicos
+                        lista_deptos = ["Todos"] + sorted(df_ver['departamento'].dropna().unique().tolist())
+                        filtro_depto = st.selectbox("🏢 Filtrar por Departamento", lista_deptos)
+                        
+                    # Aplicar filtro de departamento primero
+                    if filtro_depto != "Todos":
+                        df_ver = df_ver[df_ver['departamento'] == filtro_depto]
+                        
+                    with col_f2:
+                        # La lista de proyectos se actualiza según el departamento seleccionado
+                        lista_proys = ["Todos"] + sorted(df_ver['nombre_proyecto'].dropna().unique().tolist())
+                        filtro_proy = st.selectbox("📁 Filtrar por Proyecto", lista_proys)
+                        
+                    # Aplicar filtro de proyecto
+                    if filtro_proy != "Todos":
+                        df_ver = df_ver[df_ver['nombre_proyecto'] == filtro_proy]
+                        
+                    st.markdown("---")
+                    
+                    if df_ver.empty:
+                        st.info("No se encontraron tareas con los filtros seleccionados.")
+                    else:
+                        # FUNCIÓN PARA DAR COLOR A LA COLUMNA "ESTADO"
+                        def color_estado(val):
+                            if val == 'Completado':
+                                return 'background-color: #d4edda; color: #155724; font-weight: bold;' # Verde
+                            elif val == 'En curso':
+                                return 'background-color: #fff3cd; color: #856404; font-weight: bold;' # Naranja/Amarillo
+                            elif val == 'Bloqueado':
+                                return 'background-color: #f8d7da; color: #721c24; font-weight: bold;' # Rojo
+                            elif val == 'No iniciado':
+                                return 'background-color: #e2e3e5; color: #383d41; font-weight: bold;' # Gris
+                            return ''
+
+                        # Seleccionar y ordenar las columnas que queremos ver
+                        cols_mostrar = ['departamento', 'nombre_proyecto', 'tarea', 'prioridad', 'estado', 'responsable', 'fecha_inicio', 'fecha_entrega', 'observaciones']
+                        cols_existentes = [c for c in cols_mostrar if c in df_ver.columns]
+                        
+                        df_final = df_ver[cols_existentes]
+                        
+                        # Aplicar los estilos condicionales y mostrar la tabla
+                        st.dataframe(df_final.style.map(color_estado, subset=['estado']), use_container_width=True)
+                else:
+                    st.info("No hay tareas registradas en la base de datos.")
 
     # ------------------ MENU: GANTT ------------------
     elif menu == "📅 Vista Gantt":
@@ -348,9 +396,8 @@ else:
                 
                 df_gantt = df_gantt.dropna(subset=['fecha_inicio', 'fecha_entrega'])
                 
-                # PARÁMETROS CORREGIDOS DE PLOTLY TIMELINE (x_start y x_end)
                 fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
-                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
+                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#f0ad4e", "Bloqueado": "#d9534f", "No iniciado": "#e2e3e5"})
                 fig.update_yaxes(autorange="reversed")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
