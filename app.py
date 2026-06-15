@@ -12,14 +12,11 @@ st.set_page_config(page_title="JotaJota - Proyectos", layout="wide", page_icon="
 
 # --- TEMA CORPORATIVO JOTAJOTA ---
 def aplicar_tema_corporativo():
-    # Azul JotaJota aprox: #002387 | Verde JotaJota aprox: #6eb43f
     st.markdown("""
         <style>
-            /* Color de fondo de la barra lateral */
             [data-testid="stSidebar"] {
                 background-color: #f4f6f9;
             }
-            /* Botones principales (Azul con hover Verde) */
             .stButton > button {
                 background-color: #002387;
                 color: white;
@@ -32,11 +29,9 @@ def aplicar_tema_corporativo():
                 color: white;
                 border-color: #6eb43f;
             }
-            /* Títulos y subtítulos en Azul Corporativo */
             h1, h2, h3 {
                 color: #002387 !important;
             }
-            /* Estilo de las pestañas (Tabs) */
             .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
                 font-weight: 600;
             }
@@ -110,7 +105,6 @@ if "user_role" not in st.session_state: st.session_state.user_role = ""
 
 # --- PANTALLA DE LOGIN Y REGISTRO ---
 if not st.session_state.logged_in:
-    # Intenta cargar el logo si existe en el modo Login
     if os.path.exists("logo.png"): st.image("logo.png", width=300)
     elif os.path.exists("logo.jpg"): st.image("logo.jpg", width=300)
     
@@ -128,10 +122,9 @@ if not st.session_state.logged_in:
                 user_row = df_users[(df_users['usuario'] == login_user) & (df_users['password'] == str(login_pass))]
                 if not user_row.empty:
                     if str(user_row.iloc[0]['activo']).upper() in ['TRUE', '1', 'SI']:
-                        # GUARDAR SESIÓN (CORREGIDO EL NOMBRE)
                         st.session_state.logged_in = True
                         st.session_state.login_user = login_user
-                        st.session_state.nombre_completo = user_row.iloc[0]['nombre'] # <-- Toma la columna Nombre
+                        st.session_state.nombre_completo = user_row.iloc[0]['nombre']
                         st.session_state.user_role = user_row.iloc[0]['rol']
                         st.rerun()
                     else:
@@ -160,7 +153,6 @@ if not st.session_state.logged_in:
 # --- APLICACIÓN PRINCIPAL (LOGUEADO) ---
 else:
     with st.sidebar:
-        # Carga el logo en la barra lateral si existe
         if os.path.exists("logo.png"):
             st.image("logo.png", use_container_width=True)
         elif os.path.exists("logo.jpg"):
@@ -169,7 +161,6 @@ else:
             st.markdown("## JotaJota")
             
         st.markdown("---")
-        # Mostrar el NOMBRE COMPLETO extraído de la BBDD
         st.write(f"👤 **Usuario:** {st.session_state.nombre_completo}")
         st.write(f"🛡️ **Rol:** {st.session_state.user_role}")
         st.markdown("---")
@@ -201,7 +192,6 @@ else:
             c1, c2 = st.columns(2)
             with c1:
                 if 'departamento' in df_proyectos.columns:
-                    # Aplicamos colores corporativos a la gráfica
                     fig = px.pie(df_proyectos, names='departamento', title="Proyectos por Departamento", hole=0.4,
                                  color_discrete_sequence=['#002387', '#6eb43f', '#a3d182', '#3350a0'])
                     st.plotly_chart(fig, use_container_width=True)
@@ -225,7 +215,7 @@ else:
                 
                 if st.form_submit_button("Guardar Proyecto") and n_proy:
                     nuevo_id = int(df_proyectos['id_proyecto'].max()) + 1 if not df_proyectos.empty and pd.notna(df_proyectos['id_proyecto'].max()) else 1
-                    fecha_hoy = datetime.today().strftime('%Y-%m-%d')
+                    fecha_hoy = datetime.today().strftime('%d/%m/%Y')  # Formato corregido a DD/MM/AAAA
                     ws_proyectos.append_row([nuevo_id, n_proy, d_proy, depto, fecha_hoy])
                     st.success(f"Proyecto '{n_proy}' creado.")
                     st.rerun()
@@ -295,10 +285,14 @@ else:
                     t_obs = st.text_area("Observaciones")
                     
                     if st.form_submit_button("Crear Tarea") and t_nombre:
+                        # CORRECCIÓN DE FORMATO: Forzar el guardado como DD/MM/AAAA hacia el Sheet
+                        f_inicio_fmt = t_inicio.strftime('%d/%m/%Y')
+                        f_entrega_fmt = t_entrega.strftime('%d/%m/%Y')
+                        
                         nuevo_id_t = int(df_tareas['id_tarea'].max()) + 1 if not df_tareas.empty and 'id_tarea' in df_tareas.columns and pd.notna(df_tareas['id_tarea'].max()) else 1
                         ws_tareas.append_row([
                             nuevo_id_t, int(dict_proy[sel_proy]), t_nombre, t_prioridad, 
-                            t_estado, t_resp, str(t_inicio), str(t_entrega), t_obs
+                            t_estado, t_resp, f_inicio_fmt, f_entrega_fmt, t_obs
                         ])
                         st.success("Tarea registrada.")
                         st.rerun()
@@ -349,15 +343,20 @@ else:
             try:
                 df_gantt = df_tareas.copy()
                 df_gantt = pd.merge(df_gantt, df_proyectos, on='id_proyecto', how='left')
-                df_gantt['fecha_inicio'] = pd.to_datetime(df_gantt['fecha_inicio'])
-                df_gantt['fecha_entrega'] = pd.to_datetime(df_gantt['fecha_entrega'])
+                
+                # CORRECCIÓN DE INTERPRETACIÓN: Decirle a pandas que lea las fechas bajo el formato DD/MM/AAAA
+                df_gantt['fecha_inicio'] = pd.to_datetime(df_gantt['fecha_inicio'], format='%d/%m/%Y', errors='coerce')
+                df_gantt['fecha_entrega'] = pd.to_datetime(df_gantt['fecha_entrega'], format='%d/%m/%Y', errors='coerce')
+                
+                # Eliminar filas donde las fechas no se hayan podido transformar correctamente por seguridad
+                df_gantt = df_gantt.dropna(subset=['fecha_inicio', 'fecha_entrega'])
                 
                 fig = px.timeline(df_gantt, start="fecha_inicio", end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
                                   color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
                 fig.update_yaxis(autorange="reversed")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.error("Error al graficar. Asegúrate de que las fechas tengan formato AAAA-MM-DD.")
+                st.error(f"Error al graficar el cronograma: {e}")
         else:
             st.info("No hay datos suficientes para el Gantt.")
 
