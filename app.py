@@ -393,7 +393,6 @@ else:
                         
                         styler = df_final.style.map(color_estado, subset=['Estado']).map(color_prioridad, subset=['Prioridad'])
                         
-                        # --- NUEVA FUNCIÓN: TABLA INTERACTIVA CON ON_SELECT ---
                         st.info("💡 **Consejo:** Haz clic en la casilla vacía a la izquierda de cualquier tarea para editarla rápidamente.")
                         
                         evento_seleccion = st.dataframe(
@@ -406,11 +405,9 @@ else:
                         
                         # --- DESPLIEGUE DEL FORMULARIO DE EDICIÓN RÁPIDA ---
                         if hasattr(evento_seleccion, "selection") and len(evento_seleccion.selection.rows) > 0:
-                            # 1. Obtener la fila seleccionada de nuestra vista
                             indice_seleccionado = evento_seleccion.selection.rows[0]
                             id_tarea_seleccionada = df_ver.iloc[indice_seleccionado]['id_tarea']
                             
-                            # 2. Buscarla en el dataframe original de la BBDD
                             idx_t_real = df_tareas[df_tareas['id_tarea'] == id_tarea_seleccionada].index[0]
                             datos_tarea_real = df_tareas.iloc[idx_t_real]
                             
@@ -419,7 +416,8 @@ else:
                             
                             col_ed1, col_ed2 = st.columns(2)
                             with col_ed1:
-                                with st.form("form_ed_tar_rapida"):
+                                # ¡EL TRUCO ESTÁ AQUÍ! Añadimos el ID de la tarea a la clave del formulario para forzar su actualización
+                                with st.form(f"form_ed_tar_rapida_{id_tarea_seleccionada}"):
                                     ed_t_estado = st.selectbox("Estado", ["No iniciado", "Bloqueado", "En curso", "Completado"], index=["No iniciado", "Bloqueado", "En curso", "Completado"].index(datos_tarea_real.get('estado', 'No iniciado')))
                                     ed_t_prio = st.selectbox("Prioridad", ["Baja", "Media", "Alta"], index=["Baja", "Media", "Alta"].index(datos_tarea_real.get('prioridad', 'Baja')))
                                     ed_t_resp = st.text_input("Responsable", value=datos_tarea_real.get('responsable', ''))
@@ -436,7 +434,7 @@ else:
                                         
                             with col_ed2:
                                 st.write("Opciones críticas:")
-                                if st.button("🗑️ Eliminar esta Tarea permanentemente", use_container_width=True, key="del_rapida"):
+                                if st.button("🗑️ Eliminar esta Tarea permanentemente", use_container_width=True, key=f"del_rapida_{id_tarea_seleccionada}"):
                                     ws_tareas.delete_rows(int(idx_t_real) + 2)
                                     st.success("Tarea eliminada.")
                                     st.rerun()
