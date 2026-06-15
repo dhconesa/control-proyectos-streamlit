@@ -214,28 +214,43 @@ else:
         with tab2:
             if not df_proyectos.empty:
                 df_proyectos['Estado Proyecto'] = df_proyectos['id_proyecto'].apply(lambda x: calcular_estado_proyecto(x, df_tareas))
-                st.dataframe(df_proyectos, use_container_width=True)
                 
-                st.markdown("### Editar Proyecto")
-                proy_editar = st.selectbox("Selecciona Proyecto", df_proyectos['nombre_proyecto'].values)
-                idx = df_proyectos[df_proyectos['nombre_proyecto'] == proy_editar].index[0]
-                datos_proy = df_proyectos.iloc[idx]
+                # --- NUEVO FILTRO DE DEPARTAMENTO ---
+                st.markdown("### 🔍 Filtro de Visualización")
+                lista_deptos_p = ["Todos"] + sorted(df_proyectos['departamento'].dropna().unique().tolist())
+                filtro_depto_p = st.selectbox("🏢 Filtrar por Departamento", lista_deptos_p, key="filtro_proyectos_depto")
                 
-                with st.form("editar_proy_form"):
-                    edit_nombre = st.text_input("Nombre", value=datos_proy['nombre_proyecto'])
-                    edit_desc = st.text_area("Descripción", value=datos_proy['descripcion'])
+                df_proyectos_view = df_proyectos.copy()
+                if filtro_depto_p != "Todos":
+                    df_proyectos_view = df_proyectos_view[df_proyectos_view['departamento'] == filtro_depto_p]
+                
+                st.dataframe(df_proyectos_view, use_container_width=True)
+                
+                st.markdown("---")
+                st.markdown("### ✏️ Editar Proyecto")
+                
+                if not df_proyectos_view.empty:
+                    proy_editar = st.selectbox("Selecciona Proyecto a editar", df_proyectos_view['nombre_proyecto'].values, key="edit_select_proy")
+                    idx = df_proyectos[df_proyectos['nombre_proyecto'] == proy_editar].index[0]
+                    datos_proy = df_proyectos.iloc[idx]
                     
-                    depto_actual = datos_proy.get('departamento', DEPARTAMENTOS[0])
-                    idx_depto = DEPARTAMENTOS.index(depto_actual) if depto_actual in DEPARTAMENTOS else 0
-                    edit_depto = st.selectbox("Departamento", DEPARTAMENTOS, index=idx_depto)
-                    
-                    if st.form_submit_button("Actualizar"):
-                        num_fila = int(idx) + 2
-                        ws_proyectos.update_cell(num_fila, 2, edit_nombre)
-                        ws_proyectos.update_cell(num_fila, 3, edit_desc)
-                        ws_proyectos.update_cell(num_fila, 4, edit_depto)
-                        st.success("Proyecto actualizado!")
-                        st.rerun()
+                    with st.form("editar_proy_form"):
+                        edit_nombre = st.text_input("Nombre", value=datos_proy['nombre_proyecto'])
+                        edit_desc = st.text_area("Descripción", value=datos_proy['descripcion'])
+                        
+                        depto_actual = datos_proy.get('departamento', DEPARTAMENTOS[0])
+                        idx_depto = DEPARTAMENTOS.index(depto_actual) if depto_actual in DEPARTAMENTOS else 0
+                        edit_depto = st.selectbox("Departamento", DEPARTAMENTOS, index=idx_depto)
+                        
+                        if st.form_submit_button("Actualizar"):
+                            num_fila = int(idx) + 2
+                            ws_proyectos.update_cell(num_fila, 2, edit_nombre)
+                            ws_proyectos.update_cell(num_fila, 3, edit_desc)
+                            ws_proyectos.update_cell(num_fila, 4, edit_depto)
+                            st.success("Proyecto actualizado!")
+                            st.rerun()
+                else:
+                    st.info("No hay proyectos en este departamento para editar.")
 
         with tab3:
             if not df_proyectos.empty:
@@ -379,7 +394,6 @@ else:
                 
                 df_gantt = df_gantt.dropna(subset=['fecha_inicio', 'fecha_entrega'])
                 
-                # --- NUEVOS FILTROS DE CRONOGRAMA ---
                 st.markdown("### 🔍 Filtros")
                 col_g1, col_g2 = st.columns(2)
                 
@@ -399,7 +413,6 @@ else:
                     
                 st.markdown("---")
                 
-                # Renderizar la gráfica si existen tareas tras aplicar el filtro
                 if df_gantt.empty:
                     st.info("No se encontraron tareas con los filtros seleccionados.")
                 else:
