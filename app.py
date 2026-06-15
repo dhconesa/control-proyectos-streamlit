@@ -173,6 +173,10 @@ else:
 
     df_proyectos, ws_proyectos = get_dataframe("proyectos")
     df_tareas, ws_tareas = get_dataframe("tareas")
+    
+    # 📌 MEJORA CRUCIAL: Fijamos el índice físico para evitar errores de duplicados de ID
+    if not df_tareas.empty:
+        df_tareas['row_index'] = df_tareas.index
 
     # ------------------ MENU: DASHBOARD ------------------
     if menu == "📊 Dashboard & Métricas":
@@ -307,8 +311,10 @@ else:
                     df_merge_t['descriptivo'] = df_merge_t['nombre_proyecto'] + " -> " + df_merge_t['tarea']
                     
                     sel_tarea_edit = st.selectbox("Selecciona la Tarea a gestionar", df_merge_t['descriptivo'].values)
-                    idx_t = df_merge_t[df_merge_t['descriptivo'] == sel_tarea_edit].index[0]
-                    datos_t = df_tareas.iloc[idx_t]
+                    idx_m = df_merge_t[df_merge_t['descriptivo'] == sel_tarea_edit].index[0]
+                    # Búsqueda infalible por índice físico de la fila
+                    idx_t_real = int(df_merge_t.iloc[idx_m]['row_index'])
+                    datos_t = df_tareas.loc[idx_t_real]
                     
                     col_ed1, col_ed2 = st.columns(2)
                     with col_ed1:
@@ -319,7 +325,7 @@ else:
                             ed_t_obs = st.text_area("Observaciones", value=datos_t.get('observaciones', ''))
                             
                             if st.form_submit_button("Guardar Cambios"):
-                                fila_t = int(idx_t) + 2
+                                fila_t = int(idx_t_real) + 2
                                 ws_tareas.update_cell(fila_t, 4, ed_t_prio)
                                 ws_tareas.update_cell(fila_t, 5, ed_t_estado)
                                 ws_tareas.update_cell(fila_t, 6, ed_t_resp)
@@ -329,7 +335,7 @@ else:
                                 
                     with col_ed2:
                         if st.button("🗑️ Eliminar esta Tarea", use_container_width=True):
-                            ws_tareas.delete_rows(int(idx_t) + 2)
+                            ws_tareas.delete_rows(int(idx_t_real) + 2)
                             st.success("Tarea eliminada.")
                             st.rerun()
                 else:
@@ -400,28 +406,37 @@ else:
                             use_container_width=True, 
                             hide_index=True,
                             on_select="rerun",
-                            selection_mode="single-row"
+                            selection_mode="single-row",
+                            key="tabla_interactiva_tareas_v2"
                         )
                         
-                        # --- DESPLIEGUE DEL FORMULARIO DE EDICIÓN RÁPIDA ---
+                        # --- DESPLIEGUE DEL FORMULARIO DE EDICIÓN RÁPIDA (BULLETPROOF) ---
                         if hasattr(evento_seleccion, "selection") and len(evento_seleccion.selection.rows) > 0:
                             indice_seleccionado = evento_seleccion.selection.rows[0]
-                            id_tarea_seleccionada = df_ver.iloc[indice_seleccionado]['id_tarea']
-                            
-                            idx_t_real = df_tareas[df_tareas['id_tarea'] == id_tarea_seleccionada].index[0]
-                            datos_tarea_real = df_tareas.iloc[idx_t_real]
+                            # Búsqueda por el índice de la fila real del Sheet, no por el ID de tarea
+                            idx_t_real = int(df_ver.iloc[indice_seleccionado]['row_index'])
+                            datos_tarea_real = df_tareas.loc[idx_t_real]
                             
                             st.markdown("---")
                             st.markdown(f"### ✏️ Edición Rápida: **{datos_tarea_real['tarea']}**")
                             
                             col_ed1, col_ed2 = st.columns(2)
                             with col_ed1:
-                                # ¡EL TRUCO ESTÁ AQUÍ! Añadimos el ID de la tarea a la clave del formulario para forzar su actualización
-                                with st.form(f"form_ed_tar_rapida_{id_tarea_seleccionada}"):
-                                    ed_t_estado = st.selectbox("Estado", ["No iniciado", "Bloqueado", "En curso", "Completado"], index=["No iniciado", "Bloqueado", "En curso", "Completado"].index(datos_tarea_real.get('estado', 'No iniciado')))
-                                    ed_t_prio = st.selectbox("Prioridad", ["Baja", "Media", "Alta"], index=["Baja", "Media", "Alta"].index(datos_tarea_real.get('prioridad', 'Baja')))
-                                    ed_t_resp = st.text_input("Responsable", value=datos_tarea_real.get('responsable', ''))
-                                    ed_t_obs = st.text_area("Observaciones", value=datos_tarea_real.get('observaciones', ''))
+                                # Clave de formulario dinámica
+                                with st.form(f"form_ed_tar_rapida_{idx_t_real}"):
+                                    
+                                    # Prevención de errores de tipeo en base de datos manual
+                                    est_actual = datos_tarea_real.get('estado', 'No iniciado')
+                                    if est_actual not in ["No iniciado", "Bloqueado", "En curso", "Completado"]: est_actual = "No iniciado"
+                                    
+                                    pri_actual = datos_tarea_real.get('prioridad', 'Baja')
+                                    if pri_actual not in ["Baja", "Media", "Alta"]: pri_actual = "Baja"
+                                    
+                                    # Claves (keys) dinámicas para cada caja de texto individual
+                                    ed_t_estado = st.selectbox("Estado", ["No iniciado", "Bloqueado", "En curso", "Completado"], index=["No iniciado", "Bloqueado", "En curso", "Completado"].index(est_actual), key=f"est_{idx_t_real}")
+                                    ed_t_prio = st.selectbox("Prioridad", ["Baja", "Media", "Alta"], index=["Baja", "Media", "Alta"].index(pri_actual), key=f"pri_{idx_t_real}")
+                                    ed_t_resp = st.text_input("Responsable", value=datos_tarea_real.get('responsable', ''), key=f"res_{idx_t_real}")
+                                    ed_t_obs = st.text_area("Observaciones", value=datos_tarea_real.get('observaciones', ''), key=f"obs_{idx_t_real}")
                                     
                                     if st.form_submit_button("Guardar Cambios Rápidos"):
                                         fila_t = int(idx_t_real) + 2
@@ -434,7 +449,7 @@ else:
                                         
                             with col_ed2:
                                 st.write("Opciones críticas:")
-                                if st.button("🗑️ Eliminar esta Tarea permanentemente", use_container_width=True, key=f"del_rapida_{id_tarea_seleccionada}"):
+                                if st.button("🗑️ Eliminar esta Tarea permanentemente", use_container_width=True, key=f"del_rapida_{idx_t_real}"):
                                     ws_tareas.delete_rows(int(idx_t_real) + 2)
                                     st.success("Tarea eliminada.")
                                     st.rerun()
