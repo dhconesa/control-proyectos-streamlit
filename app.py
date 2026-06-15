@@ -351,8 +351,8 @@ else:
                 # Eliminar filas donde las fechas no se hayan podido transformar correctamente por seguridad
                 df_gantt = df_gantt.dropna(subset=['fecha_inicio', 'fecha_entrega'])
                 
-                fig = px.timeline(df_gantt, start="fecha_inicio", end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
-                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
+               fig = px.timeline(df_gantt, start="fecha_inicio", end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
+                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
                 fig.update_yaxis(autorange="reversed")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
