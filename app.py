@@ -104,7 +104,6 @@ if "user_role" not in st.session_state: st.session_state.user_role = ""
 
 # --- PANTALLA DE LOGIN Y REGISTRO ---
 if not st.session_state.logged_in:
-    # Sustituido el logo por el texto Jota Jota Foods
     st.title("🌍 Jota Jota Foods - Portal de Proyectos")
     tab_login, tab_reg = st.tabs(["🔑 Iniciar Sesión", "📝 Registrarse"])
     
@@ -150,7 +149,6 @@ if not st.session_state.logged_in:
 # --- APLICACIÓN PRINCIPAL (LOGUEADO) ---
 else:
     with st.sidebar:
-        # Sustituido el logo por texto en la barra lateral
         st.markdown("## Jota Jota Foods")
             
         st.markdown("---")
@@ -332,14 +330,14 @@ else:
                     
                     with col_f1:
                         lista_deptos = ["Todos"] + sorted(df_ver['departamento'].dropna().unique().tolist())
-                        filtro_depto = st.selectbox("🏢 Filtrar por Departamento", lista_deptos)
+                        filtro_depto = st.selectbox("🏢 Filtrar por Departamento", lista_deptos, key="list_depto")
                         
                     if filtro_depto != "Todos":
                         df_ver = df_ver[df_ver['departamento'] == filtro_depto]
                         
                     with col_f2:
                         lista_proys = ["Todos"] + sorted(df_ver['nombre_proyecto'].dropna().unique().tolist())
-                        filtro_proy = st.selectbox("📁 Filtrar por Proyecto", lista_proys)
+                        filtro_proy = st.selectbox("📁 Filtrar por Proyecto", lista_proys, key="list_proy")
                         
                     if filtro_proy != "Todos":
                         df_ver = df_ver[df_ver['nombre_proyecto'] == filtro_proy]
@@ -381,10 +379,34 @@ else:
                 
                 df_gantt = df_gantt.dropna(subset=['fecha_inicio', 'fecha_entrega'])
                 
-                fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
-                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#f0ad4e", "Bloqueado": "#d9534f", "No iniciado": "#e2e3e5"})
-                fig.update_yaxes(autorange="reversed")
-                st.plotly_chart(fig, use_container_width=True)
+                # --- NUEVOS FILTROS DE CRONOGRAMA ---
+                st.markdown("### 🔍 Filtros")
+                col_g1, col_g2 = st.columns(2)
+                
+                with col_g1:
+                    lista_deptos_g = ["Todos"] + sorted(df_gantt['departamento'].dropna().unique().tolist())
+                    filtro_depto_g = st.selectbox("🏢 Filtrar por Departamento", lista_deptos_g, key="gantt_depto")
+                    
+                if filtro_depto_g != "Todos":
+                    df_gantt = df_gantt[df_gantt['departamento'] == filtro_depto_g]
+                    
+                with col_g2:
+                    lista_proys_g = ["Todos"] + sorted(df_gantt['nombre_proyecto'].dropna().unique().tolist())
+                    filtro_proy_g = st.selectbox("📁 Filtrar por Proyecto", lista_proys_g, key="gantt_proy")
+                    
+                if filtro_proy_g != "Todos":
+                    df_gantt = df_gantt[df_gantt['nombre_proyecto'] == filtro_proy_g]
+                    
+                st.markdown("---")
+                
+                # Renderizar la gráfica si existen tareas tras aplicar el filtro
+                if df_gantt.empty:
+                    st.info("No se encontraron tareas con los filtros seleccionados.")
+                else:
+                    fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
+                                      color_discrete_map={"Completado": "#6eb43f", "En curso": "#f0ad4e", "Bloqueado": "#d9534f", "No iniciado": "#e2e3e5"})
+                    fig.update_yaxes(autorange="reversed")
+                    st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Error al graficar el cronograma: {e}")
         else:
