@@ -351,7 +351,7 @@ else:
                 # PARÁMETROS CORREGIDOS DE PLOTLY TIMELINE (x_start y x_end)
                 fig = px.timeline(df_gantt, x_start="fecha_inicio", x_end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
                                   color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
-                fig.update_yaxis(autorange="reversed")
+                fig.update_yaxes(autorange="reversed")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Error al graficar el cronograma: {e}")
