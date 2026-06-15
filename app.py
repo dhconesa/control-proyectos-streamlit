@@ -274,7 +274,7 @@ else:
         if df_proyectos.empty:
             st.warning("Primero debes crear un Proyecto antes de asignar tareas.")
         else:
-            tab_t1, tab_t2, tab_t3 = st.tabs(["➕ Añadir Tarea", "✏️ Gestionar y Modificar", "📋 Vista Lista"])
+            tab_t1, tab_t2, tab_t3 = st.tabs(["➕ Añadir Tarea", "✏️ Gestionar y Modificar", "📋 Vista Lista (Interactiva)"])
             
             with tab_t1:
                 dict_proy = dict(zip(df_proyectos['nombre_proyecto'], df_proyectos['id_proyecto']))
@@ -361,7 +361,6 @@ else:
                     if df_ver.empty:
                         st.info("No se encontraron tareas con los filtros seleccionados.")
                     else:
-                        # --- NUEVOS ESTILOS TIPO MONDAY.COM ---
                         def color_estado(val):
                             if val == 'Completado': return 'background-color: #00c875; color: white; font-weight: bold; text-align: center;'
                             elif val == 'En curso': return 'background-color: #fdab3d; color: white; font-weight: bold; text-align: center;'
@@ -380,7 +379,6 @@ else:
                         
                         df_final = df_ver[cols_existentes].copy()
                         
-                        # Limpieza de nombres de cabecera para que sea más profesional
                         df_final.rename(columns={
                             'departamento': 'Departamento',
                             'nombre_proyecto': 'Proyecto',
@@ -393,9 +391,55 @@ else:
                             'observaciones': 'Observaciones'
                         }, inplace=True)
                         
-                        # Aplicar múltiples estilos y ocultar el índice
                         styler = df_final.style.map(color_estado, subset=['Estado']).map(color_prioridad, subset=['Prioridad'])
-                        st.dataframe(styler, use_container_width=True, hide_index=True)
+                        
+                        # --- NUEVA FUNCIÓN: TABLA INTERACTIVA CON ON_SELECT ---
+                        st.info("💡 **Consejo:** Haz clic en la casilla vacía a la izquierda de cualquier tarea para editarla rápidamente.")
+                        
+                        evento_seleccion = st.dataframe(
+                            styler, 
+                            use_container_width=True, 
+                            hide_index=True,
+                            on_select="rerun",
+                            selection_mode="single-row"
+                        )
+                        
+                        # --- DESPLIEGUE DEL FORMULARIO DE EDICIÓN RÁPIDA ---
+                        if hasattr(evento_seleccion, "selection") and len(evento_seleccion.selection.rows) > 0:
+                            # 1. Obtener la fila seleccionada de nuestra vista
+                            indice_seleccionado = evento_seleccion.selection.rows[0]
+                            id_tarea_seleccionada = df_ver.iloc[indice_seleccionado]['id_tarea']
+                            
+                            # 2. Buscarla en el dataframe original de la BBDD
+                            idx_t_real = df_tareas[df_tareas['id_tarea'] == id_tarea_seleccionada].index[0]
+                            datos_tarea_real = df_tareas.iloc[idx_t_real]
+                            
+                            st.markdown("---")
+                            st.markdown(f"### ✏️ Edición Rápida: **{datos_tarea_real['tarea']}**")
+                            
+                            col_ed1, col_ed2 = st.columns(2)
+                            with col_ed1:
+                                with st.form("form_ed_tar_rapida"):
+                                    ed_t_estado = st.selectbox("Estado", ["No iniciado", "Bloqueado", "En curso", "Completado"], index=["No iniciado", "Bloqueado", "En curso", "Completado"].index(datos_tarea_real.get('estado', 'No iniciado')))
+                                    ed_t_prio = st.selectbox("Prioridad", ["Baja", "Media", "Alta"], index=["Baja", "Media", "Alta"].index(datos_tarea_real.get('prioridad', 'Baja')))
+                                    ed_t_resp = st.text_input("Responsable", value=datos_tarea_real.get('responsable', ''))
+                                    ed_t_obs = st.text_area("Observaciones", value=datos_tarea_real.get('observaciones', ''))
+                                    
+                                    if st.form_submit_button("Guardar Cambios Rápidos"):
+                                        fila_t = int(idx_t_real) + 2
+                                        ws_tareas.update_cell(fila_t, 4, ed_t_prio)
+                                        ws_tareas.update_cell(fila_t, 5, ed_t_estado)
+                                        ws_tareas.update_cell(fila_t, 6, ed_t_resp)
+                                        ws_tareas.update_cell(fila_t, 9, ed_t_obs)
+                                        st.success("¡Tarea actualizada correctamente!")
+                                        st.rerun()
+                                        
+                            with col_ed2:
+                                st.write("Opciones críticas:")
+                                if st.button("🗑️ Eliminar esta Tarea permanentemente", use_container_width=True, key="del_rapida"):
+                                    ws_tareas.delete_rows(int(idx_t_real) + 2)
+                                    st.success("Tarea eliminada.")
+                                    st.rerun()
                 else:
                     st.info("No hay tareas registradas en la base de datos.")
 
