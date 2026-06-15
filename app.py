@@ -5,9 +5,51 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import json
+import os
 
 # 1. Configuración de la página
-st.set_page_config(page_title="Gestión de Proyectos Pro", layout="wide", page_icon="📊")
+st.set_page_config(page_title="JotaJota - Proyectos", layout="wide", page_icon="🌍")
+
+# --- TEMA CORPORATIVO JOTAJOTA ---
+def aplicar_tema_corporativo():
+    # Azul JotaJota aprox: #002387 | Verde JotaJota aprox: #6eb43f
+    st.markdown("""
+        <style>
+            /* Color de fondo de la barra lateral */
+            [data-testid="stSidebar"] {
+                background-color: #f4f6f9;
+            }
+            /* Botones principales (Azul con hover Verde) */
+            .stButton > button {
+                background-color: #002387;
+                color: white;
+                border-radius: 5px;
+                border: none;
+                font-weight: bold;
+            }
+            .stButton > button:hover {
+                background-color: #6eb43f;
+                color: white;
+                border-color: #6eb43f;
+            }
+            /* Títulos y subtítulos en Azul Corporativo */
+            h1, h2, h3 {
+                color: #002387 !important;
+            }
+            /* Estilo de las pestañas (Tabs) */
+            .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+                font-weight: 600;
+            }
+            .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+                border-bottom-color: #6eb43f !important;
+            }
+            .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] [data-testid="stMarkdownContainer"] p {
+                color: #6eb43f !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+aplicar_tema_corporativo()
 
 # --- LISTA DE DEPARTAMENTOS ---
 DEPARTAMENTOS = ["Marketing", "IT / Proyectos", "Supply Chain", "Operaciones", "Ventas", "Finanzas", "RRHH"]
@@ -62,12 +104,17 @@ def calcular_estado_proyecto(id_proy, df_t):
 
 # 3. Estado de la Sesión (Login)
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
-if "username" not in st.session_state: st.session_state.username = ""
+if "login_user" not in st.session_state: st.session_state.login_user = ""
+if "nombre_completo" not in st.session_state: st.session_state.nombre_completo = ""
 if "user_role" not in st.session_state: st.session_state.user_role = ""
 
 # --- PANTALLA DE LOGIN Y REGISTRO ---
 if not st.session_state.logged_in:
-    st.title("🚀 Sistema de Gestión de Proyectos")
+    # Intenta cargar el logo si existe en el modo Login
+    if os.path.exists("logo.png"): st.image("logo.png", width=300)
+    elif os.path.exists("logo.jpg"): st.image("logo.jpg", width=300)
+    
+    st.title("🌍 Portal de Proyectos JotaJota")
     tab_login, tab_reg = st.tabs(["🔑 Iniciar Sesión", "📝 Registrarse"])
     
     df_users, ws_users = get_dataframe("usuarios")
@@ -81,8 +128,10 @@ if not st.session_state.logged_in:
                 user_row = df_users[(df_users['usuario'] == login_user) & (df_users['password'] == str(login_pass))]
                 if not user_row.empty:
                     if str(user_row.iloc[0]['activo']).upper() in ['TRUE', '1', 'SI']:
+                        # GUARDAR SESIÓN (CORREGIDO EL NOMBRE)
                         st.session_state.logged_in = True
-                        st.session_state.username = login_user
+                        st.session_state.login_user = login_user
+                        st.session_state.nombre_completo = user_row.iloc[0]['nombre'] # <-- Toma la columna Nombre
                         st.session_state.user_role = user_row.iloc[0]['rol']
                         st.rerun()
                     else:
@@ -111,7 +160,20 @@ if not st.session_state.logged_in:
 # --- APLICACIÓN PRINCIPAL (LOGUEADO) ---
 else:
     with st.sidebar:
-        st.write(f"👤 **Usuario:** {st.session_state.username} ({st.session_state.user_role})")
+        # Carga el logo en la barra lateral si existe
+        if os.path.exists("logo.png"):
+            st.image("logo.png", use_container_width=True)
+        elif os.path.exists("logo.jpg"):
+            st.image("logo.jpg", use_container_width=True)
+        else:
+            st.markdown("## JotaJota")
+            
+        st.markdown("---")
+        # Mostrar el NOMBRE COMPLETO extraído de la BBDD
+        st.write(f"👤 **Usuario:** {st.session_state.nombre_completo}")
+        st.write(f"🛡️ **Rol:** {st.session_state.user_role}")
+        st.markdown("---")
+        
         menu = st.radio("Navegación", ["📊 Dashboard & Métricas", "📁 Proyectos (CRUD)", "📝 Tareas", "📅 Vista Gantt"])
         
         if st.session_state.user_role == "Admin":
@@ -122,7 +184,8 @@ else:
         st.markdown("---")
         if st.button("🚪 Cerrar Sesión"):
             st.session_state.logged_in = False
-            st.session_state.username = ""
+            st.session_state.login_user = ""
+            st.session_state.nombre_completo = ""
             st.session_state.user_role = ""
             st.rerun()
 
@@ -138,12 +201,15 @@ else:
             c1, c2 = st.columns(2)
             with c1:
                 if 'departamento' in df_proyectos.columns:
-                    fig = px.pie(df_proyectos, names='departamento', title="Proyectos por Departamento", hole=0.4)
+                    # Aplicamos colores corporativos a la gráfica
+                    fig = px.pie(df_proyectos, names='departamento', title="Proyectos por Departamento", hole=0.4,
+                                 color_discrete_sequence=['#002387', '#6eb43f', '#a3d182', '#3350a0'])
                     st.plotly_chart(fig, use_container_width=True)
             with c2:
                 if not df_tareas.empty and 'departamento' in df_proyectos.columns:
                     df_m = pd.merge(df_tareas, df_proyectos, on='id_proyecto', how='left')
-                    fig2 = px.bar(df_m, x='departamento', color='estado', title="Estado de Tareas por Departamento")
+                    fig2 = px.bar(df_m, x='departamento', color='estado', title="Estado de Tareas por Departamento",
+                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
                     st.plotly_chart(fig2, use_container_width=True)
 
     # ------------------ MENU: CRUD PROYECTOS ------------------
@@ -178,7 +244,6 @@ else:
                     edit_nombre = st.text_input("Nombre", value=datos_proy['nombre_proyecto'])
                     edit_desc = st.text_area("Descripción", value=datos_proy['descripcion'])
                     
-                    # Para preseleccionar el departamento si existe
                     depto_actual = datos_proy.get('departamento', DEPARTAMENTOS[0])
                     idx_depto = DEPARTAMENTOS.index(depto_actual) if depto_actual in DEPARTAMENTOS else 0
                     edit_depto = st.selectbox("Departamento", DEPARTAMENTOS, index=idx_depto)
@@ -287,7 +352,8 @@ else:
                 df_gantt['fecha_inicio'] = pd.to_datetime(df_gantt['fecha_inicio'])
                 df_gantt['fecha_entrega'] = pd.to_datetime(df_gantt['fecha_entrega'])
                 
-                fig = px.timeline(df_gantt, start="fecha_inicio", end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"])
+                fig = px.timeline(df_gantt, start="fecha_inicio", end="fecha_entrega", y="tarea", color="estado", hover_data=["responsable", "nombre_proyecto"],
+                                  color_discrete_map={"Completado": "#6eb43f", "En curso": "#002387", "Bloqueado": "#d9534f", "No iniciado": "#f0ad4e"})
                 fig.update_yaxis(autorange="reversed")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
